@@ -1,0 +1,425 @@
+---
+title: "Advanced Big Data"
+output:
+  flexdashboard::flex_dashboard:
+    # theme: simplex
+    social: menu
+    source_code: embed 
+    # orientation: rows
+# resource_files:
+# - styles.css
+runtime: shiny
+# css: styles.css
+---
+```{r setup, include=FALSE}
+
+library(BiocManager)
+# options(browser = "true")
+options(repos = BiocManager::repositories())
+options(repos = c(BiocManager::repositories(),
+                  "CRAN"="https://cran.rstudio.org"), shiny.maxRequestSize = 300*1024^2)
+
+
+
+# install.packages(c("dygraphs","flexdashboard", "shinyhelper", "plotly", "plyr", "gplots", "ggplot2", "shiny","devtools","BiocManager", "devtools"))
+# install.packages("caret", dependencies = c("Depends", "Suggests"))
+library(flexdashboard)
+library(shinyhelper)
+library(ggplot2)
+library(caret)
+library(gplots)
+library(shiny)
+library(openxlsx)
+library(e1071)
+library(kernlab)
+# library(fastAdaboost)
+library(randomForest)
+# install.packages("randomForest")
+# install.packages("fastAdaboost")
+# BiocManager::install('ggnewscale')
+# devtools::install_github("weiyi-bitw/cafr")
+# devtools::install_github("hadley/emo")
+# BiocManager::install("org.Hs.eg.db")
+# BiocManager::install("AnnotationDbi")
+# BiocManager::install("clusterProfiler", dependencies = T)
+# BiocManager::install("pathview")
+library(ggnewscale)
+library(stringr)
+library(cafr)
+library(clusterProfiler)
+library(org.Hs.eg.db)
+library(AnnotationDbi)
+library(pathview)
+library(DOSE)
+```
+
+
+```{r global, include=FALSE}
+
+substrRight <- function(x, n){
+  substr(x, nchar(x)-n+1, nchar(x))
+}
+
+
+```
+
+
+Dataset Analysis {data-orientation=cols}
+=======================================================================
+
+Inputs {.sidebar}
+-------------------------------------
+
+```{r}
+fileInput("file1", "Upload Dataset (.txt, .csv, .xlsx)",
+  accept = c(".RData", ".csv", ".xlsx", ".txt"), placeholder = "Please upload txt/csv/xlsx file")
+
+adata_reac <- reactive({
+  data.input <- list()
+  if(length(input$file1$datapath) > 0){
+    inFile <- input$file1
+      if(substrRight(inFile$datapath, 3) == "txt"){
+        data <-read.table(inFile$datapath, sep = "\t")
+      }else if(substrRight(inFile$datapath, 3) == "csv"){
+        data <-read.csv(inFile$datapath, sep = ",", row.names = 1)
+      }else if(substrRight(inFile$datapath, 3) == "lsx"){
+        data <-openxlsx::read.xlsx(inFile$datapath, rowNames = T)
+      }
+  }else{
+    data <- read.csv("./demo_fibr.csv", sep = ",", row.names = 1)
+  }
+  data.input$data <- as.matrix(data)
+  labels <- rep(NA, length(colnames(data)))
+  labels[which(substr(colnames(data), 1, 1) == "N")] <- c("Normal")
+  labels[which(substr(colnames(data), 1, 1) == "T")] <- c("Tumor")
+  
+  data.input$label <- labels
+  data.input
+})
+
+```
+
+__3D scatter plot genes__
+
+```{r}
+textInput('gene1', 'Gene 1', value = "COL11A1")
+textInput('gene2', 'Gene 2', value = "APOD")
+textInput('gene3', 'Gene 3', value = "LUM")
+```
+
+__MI gene__
+
+```{r}
+textInput('gene', 'Gene', value = "COL11A1")
+```
+
+valuate the mutual information between every gene in the dataset using `getAllMIWz` function
+
+```{r}
+############  add help text
+
+############ 
+radioButtons("sorting", "sorting", c("TRUE", "FALSE"), selected = "TRUE")
+helpText("Whether sort the output vector of MI's.")
+radioButtons("negateMI", "negateMI", c("TRUE", "FALSE"), selected = "TRUE")
+helpText("When TRUE, negate the mutual information if the two vectors have negative momentum.")
+
+# renderText(length(input$file1$datapath))
+# helper(input$sorting, icon = "question-circle", colour = NULL,
+#   type = "markdown", title = "", content = "", size = "m",
+#   buttonLabel = "Okay", easyClose = TRUE, fade = FALSE)
+# checkboxInput(TRUE, FALSE, value = TRUE)
+# checkboxInput(TRUE, FALSE, value = TRUE)
+```
+
+
+
+Column {data-width=400}
+-----------------------------------------------------------------------
+
+### Scatter Plot 
+
+```{r}
+selectedData.scatter <- reactive({
+  data <- adata_reac()$data
+  df <-data.frame(Gene1=data[input$gene1,],               
+                 Gene2=data[input$gene2,], 
+                  Gene3 =data[input$gene3,])
+  
+  a <- ggplot(df, aes(x = Gene1, y = Gene2, colour = Gene3)) + scale_color_gradient(low= bluered(dim(df)[1])[1], high= bluered(dim(df)[1])[-1]) + geom_point()+ theme_bw()+ ggtitle("") 
+  a
+})
+
+
+############  change to ploty
+
+############ 
+renderPlot(selectedData.scatter())
+```
+
+
+### Violin Plot
+
+```{r}
+selectedData.violin <- reactive({
+  data <- adata_reac()$data
+  df <-data.frame(Gene=as.numeric(data[input$gene,]), label = as.character(adata_reac()$label))
+  p <- ggplot(df, aes(x=label, y=Gene, fill = label)) + 
+    geom_violin(trim=FALSE) + theme_bw()
+  p
+})
+
+renderPlot(selectedData.violin())
+```
+
+
+Column {data-width=600}
+-----------------------------------------------------------------------
+
+### MI Results
+
+```{r}
+selectedData <- reactive({
+  data <- adata_reac()$data
+  MI <- getAllMIWz(data, data[input$gene, ], sorting = as.logical(input$sorting), negateMI = as.logical(input$negateMI))
+  df_1 <- data.frame(Rank = seq(1:length(MI)), Gene = names(MI), MI = round(MI, digits = 4))
+  df_1
+})
+ 
+
+DT::renderDataTable(selectedData(), options = list(pageLength = 15, width="100%", scrollX = TRUE, scrollY = TRUE))
+
+
+```
+
+
+Machine Learning 
+=======================================================================
+
+
+Inputs {.sidebar}
+-------------------------------------
+`r emo::ji("clock")`
+```{r}
+# helpText("It will take some time to generate the 'Differentially Expressed Genes' table.")
+
+sliderInput("geneN", "Top N variable genes",min = 10, max = 2000, value = 20)
+```
+
+
+__Machine learning methods__
+
+```{r}
+# Linear Discriminant Analysis (LDA)
+# Classification and Regression Trees (CART).
+# k-Nearest Neighbors (kNN).
+# Support Vector Machines (SVM) with a linear kernel.
+# Random Forest (RF)
+
+selectInput("mlMethod", "Choose a method:",
+  list("NA" = "NA", `Linear algorithms`  = list("LDA" = "lda"), `NonLinear algorithms` = list( "Radom forest" = "rf","CART" = "rpart", "kNN" = "knn", "SVM" = "svmRadial")), "NA")
+
+# `Linear algorithms` = list("Radom forest" = "rf", "adaboost" = "adaboost")
+numericInput("cv", "k-fold cross validation", 10, min = 2, max = 10)
+helpText("It will take some time to train the model!")
+```
+`r emo::ji("clock")`
+
+
+Column
+-----------------------------------------------------------------------
+
+
+### Feature Importance 
+```{r}
+ml <- reactive({
+  res <- list()
+  data <- adata_reac()$data[1:input$geneN, ]
+  data <- as.data.frame(t(data))
+  labels <- adata_reac()$label
+  data$label <- labels
+  
+  
+  validation_index <- createDataPartition(data$label, p=0.80, list=FALSE)
+  # select 20% of the data for validation
+  validation <- data[-validation_index,]
+  # use the remaining 80% of data to training and testing the models
+  data <- data[validation_index,]
+  
+  # Run algorithms using 10-fold cross validation
+  control <- trainControl(method="cv", number=input$cv, verboseIter = TRUE)
+  metric <- "Accuracy"
+  set.seed(7)
+  ml.res <- train(label~., data=data, method=input$mlMethod, metric=metric, trControl=control)
+  predictions <- predict(ml.res, validation)
+  res$conf <- confusionMatrix(predictions, as.factor(validation$label))
+  if( input$mlMethod == "rf"){
+    res$feature <- plot(varImp(ml.res, useModel = T), top = 20)
+  }else{
+    # res$feature <- plot(varImp(ml.res, useModel = F), top = 20)
+  }
+  
+  res$model <- ml.res
+  res
+})
+# create a list of 80% of the rows in the original dataset we can use for training
+renderPlot(ml()$feature)
+
+
+```
+
+### Confusion Matrix
+```{r}
+renderPrint( ml()$conf)
+```
+
+KEGG {data-orientation=columns}
+=======================================================================
+
+Inputs {.sidebar}
+-------------------------------------
+
+__Sigature input__
+
+```{r}
+  # our.genes <- c('COMP CD74', 'SPARCL1', 'SEPP1', 'COL5A2', 'PKM', 'SLC4A4', 'IFI27', 'SPP1', 'RARRES2', 'DDIT4', 'VCAN', 'PTGDS', 'MMP2', 'C3' ,'SERPINH1', 'VMP1', 'NEXN', 'CTSK', 'GAPDH' ,'PRSS23' ,'CST1', 'MMP11', 'CYR61' ,'RPS4Y1', 'ID3' ,'COL11A1' ,'ACTA2', 'ENO1' ,'FN1', 'APOD', 'TIMP1', 'COL1A2' ,'THBS2', 'CXCL14', 'IGFBP5', 'INHBA' ,'IGFBP3' ,'SFRP4', 'A2M', 'FXYD2', 'C7', 'MGP', 'COL3A1', 'CILP' ,'S100A4' ,'SFRP2', 'THBS4' ,'COL1A1', 'INS')
+
+textAreaInput('sig', 'Signature', value = "COMP CD74 SPARCL1 SEPP1 COL5A2 PKM SLC4A4 IFI27 SPP1 RARRES2 DDIT4 VCAN PTGDS MMP2 C3 SERPINH1 VMP1 NEXN CTSK GAPDH PRSS23 CST1 MMP11 CYR61 RPS4Y1 ID3 COL11A1 ACTA2 ENO1 FN1 APOD TIMP1 COL1A2 THBS2 CXCL14 IGFBP5 INHBA IGFBP3 SFRP4 A2M FXYD2 C7 MGP COL3A1 CILP S100A4 SFRP2 THBS4 COL1A1 INS", height = "150px")
+
+# 
+sliderInput("showCategory", "showCategory",min = 1, max = 50, value = 10)
+radioButtons("circular", "circular", c("TRUE", "FALSE"), selected = "TRUE")
+
+
+# show the category 
+```
+
+__Visualization plots__
+
+```{r}
+# Linear Discriminant Analysis (LDA)
+# Classification and Regression Trees (CART).
+# k-Nearest Neighbors (kNN).
+# Support Vector Machines (SVM) with a linear kernel.
+# Random Forest (RF)
+
+selectInput("visMethod", "Choose a method:", list("barplot", "cnetplot", "dotplot", 
+                                  "emapplot"))
+# "gseaplot", "goplot", "upsetplot"
+
+```
+
+```{r}
+compute.KEGG <- reactive({
+  our.genes <- gsub("[^[:alnum:]]", " ", input$sig)
+  our.genes <- gsub("\\s+", " ", str_trim(our.genes))
+  our.genes <- strsplit(our.genes, " ", fixed = TRUE)[[1]]
+  signature <- mapIds(org.Hs.eg.db, our.genes, 'ENTREZID', 'SYMBOL')
+  kk <- clusterProfiler::enrichKEGG(gene = signature, organism = 'hsa')
+  kk
+})
+
+makeKEGG.df <- reactive({
+  KEGG.df <- as.data.frame(compute.KEGG())
+  # KEGG.df$pvalue = signif(KEGG.df$pvalue, digits = 3)
+  KEGG.df$pvalue = sprintf("%.2e",KEGG.df$pvalue)
+  KEGG.df$p.adjust = sprintf("%.2e", KEGG.df$p.adjust)
+  # KEGG.df$qvalue = signif(KEGG.df$qvalue, digits = 3)
+  KEGG.df$geneID <- NULL
+  KEGG.df$qvalue <- NULL # depends
+  KEGG.df$ID <- NULL # depends
+  KEGG.df
+})
+
+
+plot.KEGG <- reactive({
+  if(input$visMethod == "barplot"){
+    KEGG.pl <- barplot(compute.KEGG(), showCategory = input$showCategory)
+  }else if(input$visMethod == "cnetplot"){
+    KEGG.pl <- cnetplot(compute.KEGG(), showCategory = input$showCategory, circular = as.logical(input$circular))
+  }else if(input$visMethod == "dotplot"){
+    KEGG.pl <- dotplot(compute.KEGG() , showCategory = input$showCategory, )
+  }else if(input$visMethod == "emapplot"){
+    compare_cluster_GO_emap <- enrichplot::pairwise_termsim(compute.KEGG(), semData = d)
+    KEGG.pl <- emapplot(compare_cluster_GO_emap, showCategory = input$showCategory)
+  }
+  # else if(input$visMethod == "gseaplot"){
+  #   KEGG.pl <- gseaplot(compute.KEGG(),showCategory = input$showCategory)
+  # }else if(input$visMethod == "goplot"){
+  #   KEGG.pl <- goplot(compute.KEGG(), showCategory = input$showCategory)
+  # }else if(input$visMethod == "upsetplot"){
+  #   KEGG.pl <- upsetplot(compute.KEGG(), showCategory = input$showCategory)
+  # }
+  KEGG.pl
+})
+
+
+
+```
+Column {data-width=800}
+-----------------------------------------------------------------------
+
+###  Pathways
+```{r}
+DT::renderDataTable(makeKEGG.df(), options = list(pageLength = 5, width="100%", scrollX = TRUE, scrollY = TRUE))
+```
+
+<!-- Row {data-height=450} -->
+<!-- ------------------------------------- -->
+
+###  Pathways Plot
+```{r}
+
+renderPlot(plot.KEGG())
+# barplot(kk, showCategory = 16)
+# dotplot(kk, showCategory = 16)
+# emapplot(kk, showCategory = 16)
+# cnetplot(kk, showCategory = 16)
+# cnetplot(kk, showCategory = 16, circular = TRUE)
+# browseKEGG(kk, 'hsa04510')
+```
+
+Column {data-width=200}
+-----------------------------------------------------------------------
+
+###  Pathways Browse
+```{r}
+textInput('pathway.id', 'Pathway.id', value = "hsa04510")
+helpText("Character vector, the KEGG pathway ID(s), usually 5 digit, may also include the 3 letter KEGG species code.")
+
+actionButton("open.KEGG", "Open pathway")
+helpText("Open KEGG pathway with web browser.")
+
+pathway.open <- eventReactive(input$open.KEGG, {
+  browseKEGG(compute.KEGG(), input$pathway.id)
+  a <- c("Opened in the web browser!")
+  a
+})
+
+
+
+```
+
+```{r}
+renderText({pathway.open()})
+```
+
+
+###  Pathways Download
+```{r}
+actionButton("Download.KEGG", "Download pathway")
+pathway.download <- eventReactive(input$Download.KEGG, {
+  our.genes <- strsplit(input$sig, " ", fixed = TRUE)[[1]]
+  pathview::pathview(gene.data = our.genes,
+               pathway.id =input$pathway.id,
+               species = "hsa",
+               kegg.native = T)
+  b <- c("Downloaded!")
+  b
+})
+```
+
+```{r}
+
+renderText({pathway.download()})
+```
