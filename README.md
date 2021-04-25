@@ -1,6 +1,6 @@
 # 202105-16-scRNA-counterfactual
 
-Wei Zhang, wz2363 | Lingyi Cai, lc3352
+**Wei Zhang, wz2363 | Lingyi Cai, lc3352**
 
 
 From studies from the Centers for Disease Control and Prevention (CDC), Each year in the United States, more than 1.7 million people are diagnosed with cancer, and almost 600,000 die from it, making it the nation’s second leading cause of death. The cost of cancer care continues to rise and is expected to reach almost $174 billion by 2020, it's also very shocking that 1 in 3 people will have cancer in their lifetime. As we know cancer is complicated to cure, more than one thousand genes may involve in cancer development, and there are thousands of subtypes of cancer.  So,  we will be trying to make a real and tangible difference in the fight against cancer. In addition, we propose to implement a web server for this framework, so that the analysis can be performed without writing any code. This user-friendly tool can be convenient for biologists who are not familiar with programming languages.
