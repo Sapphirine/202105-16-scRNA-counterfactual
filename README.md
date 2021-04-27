@@ -3,7 +3,7 @@
 **Wei Zhang, wz2363 | Lingyi Cai, lc3352**
 
 + Introduction video: 
-+ Application [link](lingyic.shinyapps.io/simplify/)
++ Application [link](https://lingyic.shinyapps.io/simplify/)
 
 
 
