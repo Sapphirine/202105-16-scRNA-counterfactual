@@ -5,6 +5,9 @@
 + Introduction video: 
 + Application [link](https://lingyic.shinyapps.io/simplify/)
 
+## Package version
+Python: 3.6.12
+Pytorch: 1.7.0
 
 
 ## Description
