@@ -1,4 +1,6 @@
-# 202105-16-scRNA-counterfactual
+
+# Pan-cancer analysis of single-cell RNA-sequencing data using normalizing flows for counterfactual inference
+
 
 **Wei Zhang, wz2363 | Lingyi Cai, lc3352**
 
