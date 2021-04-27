@@ -2,7 +2,7 @@
 
 ## Version
 
-Please run .rmd file in rstudio. 
+Please run the `.Rmd` file in RStudio. 
 
 | List      | Version |
 | ----------- | ----------- |
