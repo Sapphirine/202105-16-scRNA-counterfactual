@@ -5,9 +5,9 @@
 + Introduction video [link](https://www.youtube.com/watch?v=1Z24HR3_JXA)
 + Application [link](https://lingyic.shinyapps.io/simplify/)
 
-[Model source code](https://github.com/Sapphirine/202105-16-scRNA-counterfactual/tree/main/model)
++ [Model source code](https://github.com/Sapphirine/202105-16-scRNA-counterfactual/tree/main/model)
 
-[Web source code](https://github.com/Sapphirine/202105-16-scRNA-counterfactual/tree/main/web)
++ [Web source code](https://github.com/Sapphirine/202105-16-scRNA-counterfactual/tree/main/web)
 
 ## Package version
 Python: 3.6.12
