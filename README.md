@@ -7,7 +7,7 @@
 
 [Model source code](https://github.com/Sapphirine/202105-16-scRNA-counterfactual/tree/main/model)
 
-[Web source code](https://github.com/Sapphirine/202105-16-scRNA-counterfactual/tree/main/model)
+[Web source code](https://github.com/Sapphirine/202105-16-scRNA-counterfactual/tree/main/web)
 
 ## Description
 
